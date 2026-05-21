@@ -16,10 +16,10 @@ import { FLOCI_ENDPOINT } from '../config'
 const { Title, Text } = Typography
 
 interface HealthResponse {
-  status: string
-  edition?: string
   version?: string
-  services?: Record<string, { status: string; available: boolean }>
+  edition?: string
+  original_edition?: string
+  services?: Record<string, string>
 }
 
 function useHealth() {
@@ -59,15 +59,16 @@ export default function Dashboard() {
   const buckets = useBucketCount()
   const tables = useTableCount()
 
-  const isOnline = health.data?.status === 'running'
+  // Online if we got a valid response with services
+  const isOnline = !!health.data?.services
 
   const serviceRows = useMemo(() => {
     if (!health.data?.services) return []
-    return Object.entries(health.data.services).map(([name, info]) => ({
+    return Object.entries(health.data.services).map(([name, status]) => ({
       key: name,
       name,
-      status: info.status,
-      available: info.available,
+      status,
+      available: status === 'running',
     }))
   }, [health.data])
 
