@@ -1,3 +1,21 @@
+> **Fork** — Este repositorio es un fork de [floci-io/floci](https://github.com/floci-io/floci). Se han añadido las siguientes funcionalidades sobre el proyecto original:
+>
+> ### Web Console (`ui/`)
+> Una interfaz web integrada para monitoreo y gestión del emulador, desplegada automáticamente junto con Floci via `docker compose up`.
+>
+> **Dashboard** — Estado del emulador (health), versión, contador de recursos desplegados y lista de servicios habilitados.
+>
+> **S3 Browser** — Visualización de buckets y objetos, navegación de prefijos como carpetas, descarga de objetos y carga de archivos por drag-and-drop.
+>
+> **DynamoDB Browser** — Visualización de tablas con metadata (status, item count, key schema), scan de items con paginación, visor JSON para atributos complejos y soporte de `FilterExpression`.
+>
+> **Acceso universal** — La UI funciona desde cualquier dirección IP (localhost, Tailscale, servidor remoto) sin configuración adicional. nginx hace proxy interno hacia el emulador dentro de la red Docker.
+>
+> | Servicio | Puerto | Descripción |
+> |---|---|---|
+> | Floci (emulador AWS) | `4566` | Sin cambios respecto al original |
+> | Floci Console (UI) | `8080` | Nueva — interfaz web de gestión |
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/7f95c191-d457-44f9-bb42-17da438c5320" width="400" alt="Floci" />
   <p align="center">

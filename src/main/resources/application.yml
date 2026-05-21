@@ -11,6 +11,11 @@ quarkus:
     host: 0.0.0.0
     limits:
       max-body-size: ${floci.max-request-size}M
+    cors:
+      enabled: true
+      origins: "*"
+      methods: GET,POST,PUT,DELETE,HEAD,OPTIONS
+      headers: "*"
   security:
      security-providers: BC
   shutdown:

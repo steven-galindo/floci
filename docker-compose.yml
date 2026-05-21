@@ -26,6 +26,17 @@ services:
         aliases:
           - localhost.floci.io
 
+  floci-ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - floci
+    networks:
+      - floci_default
+
 networks:
   floci_default:
     name: floci_default

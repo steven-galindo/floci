@@ -29,3 +29,9 @@ test-results.xml
 
 *.log
 
+iac_local/
+glue/
+
+ui/node_modules/
+ui/dist/
+ui/.env.local
