@@ -1,5 +1,14 @@
 > **Fork** — Este repositorio es un fork de [floci-io/floci](https://github.com/floci-io/floci). Se han añadido las siguientes funcionalidades sobre el proyecto original:
 >
+> ### Glue Jobs (`src/main/java/.../services/glue/`)
+> Soporte completo de AWS Glue Jobs sobre el servicio Glue existente del proyecto original.
+>
+> **Job management** — `CreateJob`, `GetJob`, `UpdateJob`, `DeleteJob`, `ListJobs` con modelo completo (`GlueJob`: nombre, role, command, default arguments, connections, timeout, max capacity, glue version, tags).
+>
+> **Job execution** — `StartJobRun`, `GetJobRun`, `GetJobRuns` con modelo de ejecución (`GlueJobRun`: run ID, estado, timestamps, error message, arguments).
+>
+> **Correcciones adicionales** — `GetTags` y `TagResource` extendidos para soportar ARNs de cualquier recurso Glue (no solo databases/tables). Stub de `GetPartitionIndexes` para compatibilidad con SDK.
+>
 > ### Web Console (`ui/`)
 > Una interfaz web integrada para monitoreo y gestión del emulador, desplegada automáticamente junto con Floci via `docker compose up`.
 >
