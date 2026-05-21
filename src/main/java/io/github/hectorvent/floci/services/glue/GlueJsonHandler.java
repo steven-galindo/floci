@@ -90,6 +90,9 @@ public class GlueJsonHandler {
                 String tableName = request.get("TableName").asText();
                 yield Response.ok(Map.of("Partitions", glueService.getPartitions(dbName, tableName))).build();
             }
+            case "GetPartitionIndexes" -> {
+                yield Response.ok(Map.of("PartitionIndexDescriptorList", List.of())).build();
+            }
             case "CreateRegistry" -> handleCreateRegistry(request, region);
             case "GetRegistry" -> handleGetRegistry(request, region);
             case "ListRegistries" -> handleListRegistries(request);
@@ -532,26 +535,51 @@ public class GlueJsonHandler {
     @SuppressWarnings("unchecked")
     private Response handleTagResource(JsonNode request) {
         String arn = request.path("ResourceArn").asText(null);
-        Map<String, String> tagsToAdd = request.has("TagsToAdd")
-                ? mapper.convertValue(request.get("TagsToAdd"), Map.class)
-                : null;
-        schemaRegistryService.tagResource(arn, tagsToAdd);
+        if (isSchemaRegistryArn(arn)) {
+            Map<String, String> tagsToAdd = request.has("TagsToAdd")
+                    ? mapper.convertValue(request.get("TagsToAdd"), Map.class)
+                    : null;
+            schemaRegistryService.tagResource(arn, tagsToAdd);
+        } else {
+            Map<String, String> tags = request.has("TagsToAdd")
+                    ? mapper.convertValue(request.get("TagsToAdd"), Map.class)
+                    : null;
+            glueService.tagResource(arn, tags);
+        }
         return Response.ok(Map.of()).build();
     }
 
     @SuppressWarnings("unchecked")
     private Response handleUntagResource(JsonNode request) {
         String arn = request.path("ResourceArn").asText(null);
-        List<String> tagsToRemove = request.has("TagsToRemove")
-                ? mapper.convertValue(request.get("TagsToRemove"), List.class)
-                : null;
-        schemaRegistryService.untagResource(arn, tagsToRemove);
+        if (isSchemaRegistryArn(arn)) {
+            List<String> tagsToRemove = request.has("TagsToRemove")
+                    ? mapper.convertValue(request.get("TagsToRemove"), List.class)
+                    : null;
+            schemaRegistryService.untagResource(arn, tagsToRemove);
+        } else {
+            List<String> tagsToRemove = request.has("TagsToRemove")
+                    ? mapper.convertValue(request.get("TagsToRemove"), List.class)
+                    : null;
+            glueService.untagResource(arn, tagsToRemove);
+        }
         return Response.ok(Map.of()).build();
     }
 
     private Response handleGetTags(JsonNode request) {
         String arn = request.path("ResourceArn").asText(null);
-        Map<String, String> tags = schemaRegistryService.getTags(arn);
+        Map<String, String> tags;
+        if (isSchemaRegistryArn(arn)) {
+            tags = schemaRegistryService.getTags(arn);
+        } else {
+            tags = glueService.getTags(arn);
+        }
         return Response.ok(Map.of("Tags", tags)).build();
+    }
+
+    /** Returns true for Schema Registry and Schema ARNs, false for database/table/job/etc. */
+    private static boolean isSchemaRegistryArn(String arn) {
+        if (arn == null) return false;
+        return arn.contains(":registry/") || arn.contains(":schema/");
     }
 }
