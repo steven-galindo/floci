@@ -8,6 +8,8 @@ import io.github.hectorvent.floci.core.storage.StorageBackend;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.services.glue.model.Column;
 import io.github.hectorvent.floci.services.glue.model.Database;
+import io.github.hectorvent.floci.services.glue.model.GlueJob;
+import io.github.hectorvent.floci.services.glue.model.GlueJobRun;
 import io.github.hectorvent.floci.services.glue.model.Partition;
 import io.github.hectorvent.floci.services.glue.model.SchemaReference;
 import io.github.hectorvent.floci.services.glue.model.StorageDescriptor;
@@ -52,6 +54,8 @@ class GlueServiceTest {
                 new InMemoryStorage<String, Database>(),
                 new InMemoryStorage<String, Table>(),
                 new InMemoryStorage<String, Partition>(),
+                new InMemoryStorage<String, GlueJob>(),
+                new InMemoryStorage<String, GlueJobRun>(),
                 schemaRegistryService, regionResolver);
         glueService.createDatabase(new Database("db1"));
     }

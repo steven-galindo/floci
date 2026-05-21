@@ -7,6 +7,8 @@ import io.github.hectorvent.floci.core.storage.StorageBackend;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.services.glue.model.Column;
 import io.github.hectorvent.floci.services.glue.model.Database;
+import io.github.hectorvent.floci.services.glue.model.GlueJob;
+import io.github.hectorvent.floci.services.glue.model.GlueJobRun;
 import io.github.hectorvent.floci.services.glue.model.Partition;
 import io.github.hectorvent.floci.services.glue.model.SchemaReference;
 import io.github.hectorvent.floci.services.glue.model.StorageDescriptor;
@@ -19,10 +21,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @ApplicationScoped
 public class GlueService {
@@ -32,6 +36,8 @@ public class GlueService {
     private final StorageBackend<String, Database> databaseStore;
     private final StorageBackend<String, Table> tableStore;
     private final StorageBackend<String, Partition> partitionStore;
+    private final StorageBackend<String, GlueJob> jobStore;
+    private final StorageBackend<String, GlueJobRun> jobRunStore;
     private final GlueSchemaRegistryService schemaRegistryService;
     private final RegionResolver regionResolver;
 
@@ -42,6 +48,8 @@ public class GlueService {
         this.databaseStore = storageFactory.create("glue", "databases.json", new TypeReference<Map<String, Database>>() {});
         this.tableStore = storageFactory.create("glue", "tables.json", new TypeReference<Map<String, Table>>() {});
         this.partitionStore = storageFactory.create("glue", "partitions.json", new TypeReference<Map<String, Partition>>() {});
+        this.jobStore = storageFactory.create("glue", "jobs.json", new TypeReference<Map<String, GlueJob>>() {});
+        this.jobRunStore = storageFactory.create("glue", "job-runs.json", new TypeReference<Map<String, GlueJobRun>>() {});
         this.schemaRegistryService = schemaRegistryService;
         this.regionResolver = regionResolver;
     }
@@ -49,11 +57,15 @@ public class GlueService {
     GlueService(StorageBackend<String, Database> databaseStore,
                 StorageBackend<String, Table> tableStore,
                 StorageBackend<String, Partition> partitionStore,
+                StorageBackend<String, GlueJob> jobStore,
+                StorageBackend<String, GlueJobRun> jobRunStore,
                 GlueSchemaRegistryService schemaRegistryService,
                 RegionResolver regionResolver) {
         this.databaseStore = databaseStore;
         this.tableStore = tableStore;
         this.partitionStore = partitionStore;
+        this.jobStore = jobStore;
+        this.jobRunStore = jobRunStore;
         this.schemaRegistryService = schemaRegistryService;
         this.regionResolver = regionResolver;
     }
@@ -124,6 +136,92 @@ public class GlueService {
         String prefix = databaseName + ":" + tableName + ":";
         return partitionStore.scan(k -> k.startsWith(prefix));
     }
+
+    // -------------------------------------------------------------------------
+    // Glue Jobs
+    // -------------------------------------------------------------------------
+
+    public GlueJob createJob(GlueJob job) {
+        if (jobStore.get(job.getName()).isPresent()) {
+            throw new AwsException("IdempotentParameterMismatchException",
+                    "Job already exists: " + job.getName(), 400);
+        }
+        Instant now = Instant.now();
+        job.setCreatedOn(now);
+        job.setLastModifiedOn(now);
+        jobStore.put(job.getName(), job);
+        LOG.infov("Created Glue Job: {0}", job.getName());
+        return job;
+    }
+
+    public GlueJob getJob(String name) {
+        return jobStore.get(name)
+                .orElseThrow(() -> new AwsException("EntityNotFoundException",
+                        "Job not found: " + name, 400));
+    }
+
+    public GlueJob updateJob(String name, GlueJob update) {
+        GlueJob existing = getJob(name);
+        if (update.getRole() != null) existing.setRole(update.getRole());
+        if (update.getCommand() != null) existing.setCommand(update.getCommand());
+        if (update.getDefaultArguments() != null) existing.setDefaultArguments(update.getDefaultArguments());
+        if (update.getNonOverridableArguments() != null) existing.setNonOverridableArguments(update.getNonOverridableArguments());
+        if (update.getDescription() != null) existing.setDescription(update.getDescription());
+        if (update.getGlueVersion() != null) existing.setGlueVersion(update.getGlueVersion());
+        if (update.getMaxCapacity() != null) existing.setMaxCapacity(update.getMaxCapacity());
+        if (update.getMaxRetries() != null) existing.setMaxRetries(update.getMaxRetries());
+        if (update.getNumberOfWorkers() != null) existing.setNumberOfWorkers(update.getNumberOfWorkers());
+        if (update.getTimeout() != null) existing.setTimeout(update.getTimeout());
+        if (update.getWorkerType() != null) existing.setWorkerType(update.getWorkerType());
+        existing.setLastModifiedOn(Instant.now());
+        jobStore.put(name, existing);
+        LOG.infov("Updated Glue Job: {0}", name);
+        return existing;
+    }
+
+    public void deleteJob(String name) {
+        getJob(name);
+        jobStore.delete(name);
+        jobRunStore.scan(k -> k.startsWith(name + ":"))
+                .forEach(run -> jobRunStore.delete(name + ":" + run.getId()));
+        LOG.infov("Deleted Glue Job: {0}", name);
+    }
+
+    public List<String> listJobs() {
+        return jobStore.scan(k -> true).stream()
+                .map(GlueJob::getName)
+                .toList();
+    }
+
+    public GlueJobRun startJobRun(String jobName, Map<String, String> arguments) {
+        getJob(jobName);
+        Instant now = Instant.now();
+        GlueJobRun run = new GlueJobRun();
+        run.setId("jr_" + UUID.randomUUID().toString().replace("-", ""));
+        run.setJobName(jobName);
+        run.setJobRunState("SUCCEEDED");
+        run.setStartedOn(now);
+        run.setCompletedOn(now);
+        run.setExecutionTime(1);
+        run.setAttempt(0);
+        run.setArguments(arguments);
+        jobRunStore.put(jobName + ":" + run.getId(), run);
+        LOG.infov("Started Glue Job run: {0} / {1}", jobName, run.getId());
+        return run;
+    }
+
+    public GlueJobRun getJobRun(String jobName, String runId) {
+        return jobRunStore.get(jobName + ":" + runId)
+                .orElseThrow(() -> new AwsException("EntityNotFoundException",
+                        "Job run not found: " + runId, 400));
+    }
+
+    public List<GlueJobRun> getJobRuns(String jobName) {
+        getJob(jobName);
+        return jobRunStore.scan(k -> k.startsWith(jobName + ":"));
+    }
+
+    // -------------------------------------------------------------------------
 
     private void validateSchemaReference(Table table) {
         SchemaReference ref = schemaReferenceOf(table);

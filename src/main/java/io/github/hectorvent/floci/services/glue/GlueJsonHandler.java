@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.hectorvent.floci.core.common.AwsException;
 import io.github.hectorvent.floci.services.glue.model.Database;
+import io.github.hectorvent.floci.services.glue.model.GlueJob;
+import io.github.hectorvent.floci.services.glue.model.GlueJobRun;
 import io.github.hectorvent.floci.services.glue.model.Partition;
 import io.github.hectorvent.floci.services.glue.model.Table;
 import io.github.hectorvent.floci.services.glue.schemaregistry.GlueSchemaRegistryService;
@@ -108,6 +110,54 @@ public class GlueJsonHandler {
             case "PutSchemaVersionMetadata" -> handlePutSchemaVersionMetadata(request);
             case "RemoveSchemaVersionMetadata" -> handleRemoveSchemaVersionMetadata(request);
             case "QuerySchemaVersionMetadata" -> handleQuerySchemaVersionMetadata(request);
+            case "CreateJob" -> {
+                GlueJob job = mapper.treeToValue(request, GlueJob.class);
+                GlueJob created = glueService.createJob(job);
+                yield Response.ok(Map.of("Name", created.getName())).build();
+            }
+            case "GetJob" -> {
+                String name = request.get("JobName").asText();
+                GlueJob job = glueService.getJob(name);
+                yield Response.ok(Map.of("Job", job)).build();
+            }
+            case "UpdateJob" -> {
+                String name = request.get("JobName").asText();
+                GlueJob update = mapper.treeToValue(request.get("JobUpdate"), GlueJob.class);
+                GlueJob updated = glueService.updateJob(name, update);
+                yield Response.ok(Map.of("JobName", updated.getName())).build();
+            }
+            case "DeleteJob" -> {
+                String name = request.get("JobName").asText();
+                glueService.deleteJob(name);
+                yield Response.ok(Map.of("JobName", name)).build();
+            }
+            case "ListJobs" -> {
+                yield Response.ok(Map.of("JobNames", glueService.listJobs())).build();
+            }
+            case "StartJobRun" -> {
+                String jobName = request.get("JobName").asText();
+                @SuppressWarnings("unchecked")
+                Map<String, String> args = request.has("Arguments")
+                        ? mapper.convertValue(request.get("Arguments"), Map.class)
+                        : null;
+                GlueJobRun run = glueService.startJobRun(jobName, args);
+                yield Response.ok(Map.of("JobRunId", run.getId())).build();
+            }
+            case "GetJobRun" -> {
+                String jobName = request.get("JobName").asText();
+                String runId = request.get("RunId").asText();
+                GlueJobRun run = glueService.getJobRun(jobName, runId);
+                yield Response.ok(Map.of("JobRun", run)).build();
+            }
+            case "GetJobRuns" -> {
+                String jobName = request.get("JobName").asText();
+                yield Response.ok(Map.of("JobRuns", glueService.getJobRuns(jobName))).build();
+            }
+            case "BatchStopJobRun" -> {
+                yield Response.ok(Map.of(
+                        "SuccessfulSubmissions", List.of(),
+                        "Errors", List.of())).build();
+            }
             case "TagResource" -> handleTagResource(request);
             case "UntagResource" -> handleUntagResource(request);
             case "GetTags" -> handleGetTags(request);
