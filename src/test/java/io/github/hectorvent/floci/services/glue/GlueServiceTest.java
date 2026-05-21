@@ -56,6 +56,7 @@ class GlueServiceTest {
                 new InMemoryStorage<String, Partition>(),
                 new InMemoryStorage<String, GlueJob>(),
                 new InMemoryStorage<String, GlueJobRun>(),
+                new InMemoryStorage<String, java.util.Map<String, String>>(),
                 schemaRegistryService, regionResolver);
         glueService.createDatabase(new Database("db1"));
     }

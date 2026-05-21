@@ -38,6 +38,7 @@ public class GlueService {
     private final StorageBackend<String, Partition> partitionStore;
     private final StorageBackend<String, GlueJob> jobStore;
     private final StorageBackend<String, GlueJobRun> jobRunStore;
+    private final StorageBackend<String, Map<String, String>> resourceTagStore;
     private final GlueSchemaRegistryService schemaRegistryService;
     private final RegionResolver regionResolver;
 
@@ -50,6 +51,7 @@ public class GlueService {
         this.partitionStore = storageFactory.create("glue", "partitions.json", new TypeReference<Map<String, Partition>>() {});
         this.jobStore = storageFactory.create("glue", "jobs.json", new TypeReference<Map<String, GlueJob>>() {});
         this.jobRunStore = storageFactory.create("glue", "job-runs.json", new TypeReference<Map<String, GlueJobRun>>() {});
+        this.resourceTagStore = storageFactory.create("glue", "resource-tags.json", new TypeReference<Map<String, Map<String, String>>>() {});
         this.schemaRegistryService = schemaRegistryService;
         this.regionResolver = regionResolver;
     }
@@ -59,6 +61,7 @@ public class GlueService {
                 StorageBackend<String, Partition> partitionStore,
                 StorageBackend<String, GlueJob> jobStore,
                 StorageBackend<String, GlueJobRun> jobRunStore,
+                StorageBackend<String, Map<String, String>> resourceTagStore,
                 GlueSchemaRegistryService schemaRegistryService,
                 RegionResolver regionResolver) {
         this.databaseStore = databaseStore;
@@ -66,6 +69,7 @@ public class GlueService {
         this.partitionStore = partitionStore;
         this.jobStore = jobStore;
         this.jobRunStore = jobRunStore;
+        this.resourceTagStore = resourceTagStore;
         this.schemaRegistryService = schemaRegistryService;
         this.regionResolver = regionResolver;
     }
@@ -219,6 +223,38 @@ public class GlueService {
     public List<GlueJobRun> getJobRuns(String jobName) {
         getJob(jobName);
         return jobRunStore.scan(k -> k.startsWith(jobName + ":"));
+    }
+
+    // ── Generic resource tags (databases, tables, jobs, …) ───────────────────
+
+    public void tagResource(String arn, Map<String, String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+        Map<String, String> existing = resourceTagStore.get(arn).orElse(null);
+        Map<String, String> merged = new java.util.HashMap<>();
+        if (existing != null) {
+            merged.putAll(existing);
+        }
+        merged.putAll(tags);
+        resourceTagStore.put(arn, merged);
+    }
+
+    public void untagResource(String arn, List<String> tagKeys) {
+        if (tagKeys == null || tagKeys.isEmpty()) {
+            return;
+        }
+        Map<String, String> existing = resourceTagStore.get(arn).orElse(null);
+        if (existing == null) {
+            return;
+        }
+        Map<String, String> updated = new java.util.HashMap<>(existing);
+        tagKeys.forEach(updated::remove);
+        resourceTagStore.put(arn, updated);
+    }
+
+    public Map<String, String> getTags(String arn) {
+        return resourceTagStore.get(arn).orElse(java.util.Collections.emptyMap());
     }
 
     // -------------------------------------------------------------------------
