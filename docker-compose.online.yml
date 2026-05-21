@@ -1,0 +1,38 @@
+services:
+  floci:
+    image: floci-fork:glue
+    container_name: floci
+    hostname: floci
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:4566:4566"
+    volumes:
+      # Persistencia real: floci guarda en /app/data (FLOCI_STORAGE_PERSISTENT_PATH)
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FLOCI_STORAGE_MODE=hybrid
+      - AWS_DEFAULT_REGION=us-east-1
+    networks:
+      - openclaw_default
+      - floci_default
+
+  floci-ui:
+    image: floci-ui:latest
+    container_name: floci-ui
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:8080:80"
+    depends_on:
+      - floci
+    networks:
+      - floci_default
+
+volumes:
+  floci_data:  # kept for backwards compat but no longer used by floci
+
+networks:
+  openclaw_default:
+    external: true
+  floci_default:
+    name: floci_default
