@@ -6,7 +6,7 @@ import {
 } from 'antd'
 import {
   FolderOutlined, FileOutlined, UploadOutlined,
-  DownloadOutlined, ReloadOutlined, ArrowLeftOutlined,
+  DownloadOutlined, ReloadOutlined, ArrowLeftOutlined, CopyOutlined,
 } from '@ant-design/icons'
 import {
   ListBucketsCommand,
@@ -194,12 +194,24 @@ export default function S3Browser() {
     {
       title: '',
       key: 'actions',
-      width: 60,
+      width: 90,
       render: (_: unknown, row: ObjectEntry) =>
         !row.isFolder ? (
-          <Tooltip title="Download">
-            <Button icon={<DownloadOutlined />} size="small" onClick={() => handleDownload(row.key)} />
-          </Tooltip>
+          <Space>
+            <Tooltip title="Copy S3 URI">
+              <Button
+                icon={<CopyOutlined />}
+                size="small"
+                onClick={() => {
+                  navigator.clipboard.writeText(`s3://${selectedBucket}/${row.key}`)
+                  msgApi.success('URI copied')
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="Download">
+              <Button icon={<DownloadOutlined />} size="small" onClick={() => handleDownload(row.key)} />
+            </Tooltip>
+          </Space>
         ) : null,
     },
   ]

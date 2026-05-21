@@ -1,4 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3'
+import type { RequestChecksumCalculation, ResponseChecksumValidation } from '@aws-sdk/middleware-flexible-checksums'
 import { FLOCI_ENDPOINT } from '../config'
 
 export function createS3Client() {
@@ -6,6 +7,8 @@ export function createS3Client() {
     endpoint: FLOCI_ENDPOINT,
     region: 'us-east-1',
     forcePathStyle: true,
+    requestChecksumCalculation: 'WHEN_REQUIRED' as RequestChecksumCalculation,
+    responseChecksumValidation: 'WHEN_REQUIRED' as ResponseChecksumValidation,
     credentials: {
       accessKeyId: 'test',
       secretAccessKey: 'test',
